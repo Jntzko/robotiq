@@ -28,7 +28,7 @@ int main(int argc, char** argv)
   private_nh.param<std::string>("gripper_name", gripper_name, "gripper");
 
   // Fill out S-Model Params
-  robotiq_action_server::CModelGripperParams cparams = s_defaults();
+  robotiq_action_server::SModelGripperParams cparams = s_defaults();
   
   // Min because fingers can push forward before the mechanical stops are reached
   private_nh.param<double>("min_gap", cparams.min_gap_, cparams.min_gap_);
@@ -39,7 +39,7 @@ int main(int argc, char** argv)
   ROS_INFO("Initializing Robotiq action server for gripper: %s", gripper_name.c_str());
 
   // The name of the gripper -> this server communicates over name/inputs and name/outputs
-  robotiq_action_server::CModelGripperActionServer gripper (gripper_name, cparams);
+  robotiq_action_server::SModelGripperActionServer gripper (gripper_name, cparams);
 
   ROS_INFO("Robotiq action-server spinning for gripper: %s", gripper_name.c_str());
   ros::spin();

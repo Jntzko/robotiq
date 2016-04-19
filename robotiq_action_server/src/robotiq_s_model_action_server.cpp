@@ -19,7 +19,7 @@ namespace
   struct BadArgumentsError {};
 
 
-  GripperOutput goalToRegisterState(const GripperCommandGoal& goal, const CModelGripperParams& params)
+  GripperOutput goalToRegisterState(const GripperCommandGoal& goal, const SModelGripperParams& params)
   {
     GripperOutput result;
     result.rACT = 0x1; // active gripper
@@ -51,10 +51,10 @@ namespace
     double dist_per_tick = (params.max_gap_ - params.min_gap_) / 113;
     double eff_per_tick = (params.max_effort_ - params.min_effort_) / 113;
 
-    result.rPR = static_cast<uint8_t>((params.max_gap_ - goal.command.position) / dist_per_tick);
-    result.rFR = static_cast<uint8_t>((goal.command.max_effort - params.min_effort_) / eff_per_tick);
+    result.rPRA = static_cast<uint8_t>((params.max_gap_ - goal.command.position) / dist_per_tick);
+    result.rFRA = static_cast<uint8_t>((goal.command.max_effort - params.min_effort_) / eff_per_tick);
 
-    ROS_INFO("Setting goal position register to %hhu", result.rPR);
+    ROS_INFO("Setting goal position register to %hhu", result.rPRA);
 
     return result;
   }
@@ -64,7 +64,7 @@ namespace
       code duplication.
   */
   template<typename T>
-  T registerStateToResultT(const GripperInput& input, const CModelGripperParams& params, uint8_t goal_pos)
+  T registerStateToResultT(const GripperInput& input, const SModelGripperParams& params, uint8_t goal_pos)
   {
     T result;
    // double dist_per_tick = (params.max_gap_ - params.min_gap_) / 255;
@@ -72,23 +72,23 @@ namespace
     double dist_per_tick = (params.max_gap_ - params.min_gap_) / 113;
     double eff_per_tick = (params.max_effort_ - params.min_effort_) / 113;
 
-    result.position = input.gPO * dist_per_tick + params.min_gap_;
-    result.effort = input.gCU * eff_per_tick + params.min_effort_;
-    result.stalled = input.gOBJ == 0x1 || input.gOBJ == 0x2;
-    result.reached_goal = input.gPO == goal_pos;
+    result.position = input.gPOA * dist_per_tick + params.min_gap_;
+    result.effort = input.gCUA * eff_per_tick + params.min_effort_;
+    result.stalled = input.gSTA == 0x1 || input.gSTA == 0x2;
+    result.reached_goal = input.gPOA == goal_pos;
 
     return result;
   }
 
   // Inline api-transformers to avoid confusion when reading the action_server source
   inline
-  GripperCommandResult registerStateToResult(const GripperInput& input, const CModelGripperParams& params, uint8_t goal_pos)
+  GripperCommandResult registerStateToResult(const GripperInput& input, const SModelGripperParams& params, uint8_t goal_pos)
   {
     return registerStateToResultT<GripperCommandResult>(input, params, goal_pos);
   }
 
   inline
-  GripperCommandFeedback registerStateToFeedback(const GripperInput& input, const CModelGripperParams& params, uint8_t goal_pos)
+  GripperCommandFeedback registerStateToFeedback(const GripperInput& input, const SModelGripperParams& params, uint8_t goal_pos)
   {
     return registerStateToResultT<GripperCommandFeedback>(input, params, goal_pos);
   }
@@ -172,23 +172,24 @@ void SModelGripperActionServer::analysisCB(const GripperInput::ConstPtr& msg)
     ROS_WARN("%s faulted with code: %x", action_name_.c_str(), current_reg_state_.gFLT);
     as_.setAborted(registerStateToResult(current_reg_state_,
                                          gripper_params_,
-                                         goal_reg_state_.rPR));
+                                         goal_reg_state_.rPRA));
   }
-  else if (current_reg_state_.gGTO && current_reg_state_.gOBJ && current_reg_state_.gPR == goal_reg_state_.rPR)
+  else if (current_reg_state_.gGTO && current_reg_state_.gSTA && current_reg_state_.gPRA == goal_reg_state_.rPRA && 
+	current_reg_state_.gPRB == goal_reg_state_.rPRB && current_reg_state_.gPRC == goal_reg_state_.rPRC)
   {
     // If commanded to move and if at a goal state and if the position request matches the echo'd PR, we're
     // done with a move
     ROS_INFO("%s succeeded", action_name_.c_str());
     as_.setSucceeded(registerStateToResult(current_reg_state_,
                                            gripper_params_,
-                                           goal_reg_state_.rPR));
+                                           goal_reg_state_.rPRA));
   }
   else
   {
     // Publish feedback
     as_.publishFeedback(registerStateToFeedback(current_reg_state_,
                                                 gripper_params_,
-                                                goal_reg_state_.rPR));
+                                                goal_reg_state_.rPRA));
   }
 }
 
